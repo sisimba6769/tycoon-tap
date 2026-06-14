@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TycoonTap 💰</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;min-height:100vh;overscroll-behavior:none;}
+#app{max-width:430px;margin:0 auto;padding:12px;padding-bottom:30px;}
+.top{text-align:center;padding:14px 0 6px;}
+.money{font-size:32px;font-weight:700;color:#fff;}
+.rate{font-size:12px;color:#888;margin-top:3px;}
+.tap-wrap{position:relative;display:flex;justify-content:center;margin:10px 0;}
+.tap-btn{width:110px;height:110px;border-radius:50%;background:linear-gradient(145deg,#1D9E75,#0F6E56);border:3px solid #2fcf99;cursor:pointer;font-size:42px;display:flex;align-items:center;justify-content:center;transition:transform .08s;box-shadow:0 0 20px #1D9E7544;user-select:none;}
+.tap-btn:active{transform:scale(0.88);}
+.float{position:absolute;font-size:15px;font-weight:700;color:#2fcf99;pointer-events:none;animation:up .85s ease-out forwards;}
+@keyframes up{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-55px)}}
+.ticker{background:#1a1a1a;border-radius:10px;padding:7px 11px;font-size:11px;color:#aaa;margin-bottom:10px;display:flex;gap:7px;align-items:center;border:1px solid #2a2a2a;}
+.dot{width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.tabs{display:flex;gap:4px;margin-bottom:10px;}
+.tab{flex:1;padding:8px 2px;font-size:11px;border-radius:10px;border:1px solid #2a2a2a;background:#1a1a1a;color:#888;cursor:pointer;text-align:center;}
+.tab.on{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.sec{display:none;}
+.sec.vis{display:block;}
+.card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:11px 13px;margin-bottom:9px;}
+.row{display:flex;align-items:center;gap:9px;}
+.ico{font-size:26px;width:36px;text-align:center;flex-shrink:0;}
+.info{flex:1;min-width:0;}
+.bname{font-size:13px;font-weight:600;color:#f0f0f0;}
+.binc{font-size:11px;color:#1D9E75;margin-top:2px;}
+.bmeta{font-size:10px;color:#666;margin-top:1px;}
+.bbuy{padding:8px 11px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:none;flex-shrink:0;}
+.green{background:#1D9E75;color:#fff;}
+.green:active{background:#0F6E56;}
+.blue{background:#185FA5;color:#fff;}
+.blue:active{background:#0c447c;}
+.grey{background:#2a2a2a;color:#555;cursor:default;}
+.pbar-wrap{display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;}
+.pbar{flex:1;height:5px;background:#2a2a2a;border-radius:3px;overflow:hidden;min-width:60px;}
+.pfill{height:100%;background:#1D9E75;border-radius:3px;transition:width .15s;}
+.ups{display:flex;gap:4px;}
+.ubtn{padding:4px 7px;font-size:10px;border-radius:6px;border:1px solid #2a2a2a;background:#222;color:#888;cursor:pointer;}
+.ubtn.can{background:#3d2e00;color:#FAC775;border-color:#FAC775;}
+.ubtn.can:active{background:#5a4300;}
+.inv-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:12px 13px;margin-bottom:9px;}
+.iname{font-weight:600;font-size:13px;color:#f0f0f0;}
+.idesc{font-size:11px;color:#666;margin:3px 0 8px;}
+.irow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.badge{font-size:10px;padding:3px 8px;border-radius:99px;font-weight:500;}
+.blow{background:#0a2000;color:#5fcf30;border:1px solid #2a5a10;}
+.bmid{background:#2a1a00;color:#FAC775;border:1px solid #5a3a00;}
+.bhigh{background:#2a0000;color:#f07070;border:1px solid #5a1010;}
+.rival-card{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:11px;padding:10px 13px;margin-bottom:7px;display:flex;align-items:center;gap:9px;}
+.ahead{background:#0a2000;color:#5fcf30;font-size:10px;padding:3px 8px;border-radius:99px;border:1px solid #2a5a10;}
+.behind{background:#2a0000;color:#f07070;font-size:10px;padding:3px 8px;border-radius:99px;border:1px solid #5a1010;}
+.pbox{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:16px;text-align:center;margin-bottom:10px;}
+.ptitle{font-size:16px;font-weight:700;margin-bottom:5px;}
+.pdesc{font-size:12px;color:#888;margin-bottom:12px;line-height:1.6;}
+.pbtn{padding:10px 24px;border-radius:10px;background:#7F77DD;color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:600;}
+.pbtn:disabled{background:#2a2a2a;color:#555;cursor:default;}
+.srow{display:flex;gap:9px;margin-bottom:10px;}
+.sbox{flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px;text-align:center;}
+.sval{font-size:18px;font-weight:700;}
+.slbl{font-size:10px;color:#666;margin-top:2px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#f0f0f0;padding:9px 18px;border-radius:10px;font-size:13px;z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;border:1px solid #3a3a3a;}
+.toast.show{opacity:1;}
+.news-banner{background:#1a2a1a;border:1px solid #1D9E75;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#aaa;}
+.news-banner.bad{background:#2a1a1a;border-color:#9e1d1d;color:#aaa;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="money" id="moneyEl">$10</div>
+    <div class="rate" id="rateEl">+$0/сек · Всего: $10</div>
+  </div>
+  <div class="tap-wrap" id="tapWrap">
+    <button class="tap-btn" id="tapBtn">💰</button>
+  </div>
+  <div class="ticker"><div class="dot"></div><span id="tickerEl">Рынки открылись. Удачи, предприниматель!</span></div>
+  <div class="tabs">
+    <div class="tab on" onclick="sw('biz',this)">Бизнесы</div>
+    <div class="tab" onclick="sw('inv',this)">Инвестиции</div>
+    <div class="tab" onclick="sw('riv',this)">Соперники</div>
+    <div class="tab" onclick="sw('pre',this)">Престиж</div>
+  </div>
+  <div id="sec-biz" class="sec vis"></div>
+  <div id="sec-inv" class="sec"></div>
+  <div id="sec-riv" class="sec"></div>
+  <div id="sec-pre" class="sec"></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+const BIZ=[
+  {icon:'🍋',name:'Ларёк с лимонадом',cost:10,income:0.5,cycle:1},
+  {icon:'🍕',name:'Пиццерия',cost:120,income:5,cycle:3},
+  {icon:'🏪',name:'Супермаркет',cost:1300,income:50,cycle:6},
+  {icon:'🏭',name:'Завод',cost:14000,income:500,cycle:12},
+  {icon:'🏦',name:'Банк',cost:150000,income:5000,cycle:20},
+  {icon:'🚀',name:'Космос',cost:1600000,income:50000,cycle:40},
+];
+const INV=[
+  {name:'Стартап',desc:'Молодой проект в сфере ИИ',cost:500,chance:0.55,mult:1.8,risk:'low'},
+  {name:'Криптовалюта',desc:'Анонимный токен с перспективой',cost:2000,chance:0.45,mult:2.5,risk:'mid'},
+  {name:'Мусорные облигации',desc:'Высокий риск, высокий доход',cost:10000,chance:0.35,mult:4,risk:'high'},
+  {name:'Венчурный фонд',desc:'Диверсифицированный портфель',cost:50000,chance:0.6,mult:1.6,risk:'low'},
+  {name:'Нефтяная скважина',desc:'Нестабильный, но прибыльный рынок',cost:200000,chance:0.4,mult:3.5,risk:'high'},
+];
+const NEWS=[
+  {t:'📈 Экономический бум! Налоги снижены.',m:1.5,d:30,good:true},
+  {t:'📉 Финансовый кризис! Рынки рухнули.',m:0.7,d:30,good:false},
+  {t:'🏛️ Центробанк снизил ставку.',m:1.3,d:20,good:true},
+  {t:'🌪️ Инфляция! Издержки выросли.',m:0.8,d:25,good:false},
+  {t:'🤝 Торговое соглашение подписано!',m:1.4,d:20,good:true},
+  {t:'🌟 Ваш бизнес попал в Forbes!',m:2.0,d:15,good:true},
+  {t:'⚡ Энергокризис. Расходы выросли.',m:0.85,d:25,good:false},
+];
+const RIVALS=[
+  {name:'Иван Стартапов',icon:'👨‍💼',worth:80},
+  {name:'Ольга Миллионова',icon:'👩‍💼',worth:5000},
+  {name:'Дядя Жора',icon:'🤵',worth:50000},
+  {name:'МегаКорп Inc.',icon:'🏢',worth:500000},
+  {name:'Безос-младший',icon:'🦾',worth:10000000},
+];
+
+let G={money:10,total:10,tapPow:1,prestige:0,pMult:1,newsMult:1,newsTimer:0,newsIn:18,curNews:null,
+  owned:[0,0,0,0,0,0],lvl:[1,1,1,1,1,1],mgr:[false,false,false,false,false,false],prog:[0,0,0,0,0,0]};
+
+function save(){try{localStorage.setItem('tt',JSON.stringify(G));}catch(e){}}
+function load(){try{const d=localStorage.getItem('tt');if(d)G=JSON.parse(d);}catch(e){}}
+
+function fmt(n){if(n<1e3)return'$'+Math.floor(n);if(n<1e6)return'$'+(n/1e3).toFixed(1)+'K';if(n<1e9)return'$'+(n/1e6).toFixed(2)+'M';if(n<1e12)return'$'+(n/1e9).toFixed(2)+'B';return'$'+(n/1e12).toFixed(2)+'T';}
+function fs(n){if(n<1e3)return n.toFixed(1);if(n<1e6)return(n/1e3).toFixed(1)+'K';if(n<1e9)return(n/1e6).toFixed(2)+'M';return(n/1e9).toFixed(2)+'B';}
+function bizCost(i){return Math.floor(BIZ[i].cost*Math.pow(1.15,G.owned[i]));}
+function lvlM(i){return[1,2,5,10][G.lvl[i]-1]||10;}
+function bizInc(i){return BIZ[i].income*G.owned[i]*lvlM(i)*G.pMult*G.newsMult;}
+function passive(){let s=0;for(let i=0;i<6;i++)if(G.owned[i]>0)s+=bizInc(i)/BIZ[i].cycle;return s;}
+function mgrCost(i){return BIZ[i].cost*50;}
+function upCost(i,t){return Math.floor(BIZ[i].cost*G.owned[i]*t*2);}
+
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+
+document.getElementById('tapBtn').addEventListener('click',function(e){
+  const earn=G.tapPow*G.pMult*G.newsMult;
+  G.money+=earn;G.total+=earn;
+  const wrap=document.getElementById('tapWrap');
+  const el=document.createElement('div');
+  el.className='float';el.textContent='+'+fmt(earn);
+  el.style.cssText='left:'+(30+Math.random()*40)+'%;top:5px;';
+  wrap.appendChild(el);setTimeout(()=>el.remove(),850);
+  updateTop();
+});
+
+function buyBiz(i){
+  const c=bizCost(i);
+  if(G.money<c){toast('Недостаточно денег!');return;}
+  G.money-=c;G.owned[i]++;
+  if(G.owned[i]===1)G.tapPow+=BIZ[i].income*0.05;
+  save();renderBiz();updateTop();
+}
+function buyMgr(i){
+  const c=mgrCost(i);
+  if(G.owned[i]===0){toast('Сначала купи бизнес!');return;}
+  if(G.money<c){toast('Недостаточно денег!');return;}
+  G.money-=c;G.mgr[i]=true;
+  toast('Менеджер нанят! Бизнес работает сам.');
+  save();renderBiz();updateTop();
+}
+function upgBiz(i,t){
+  if(G.lvl[i]>=t)return;
+  const c=upCost(i,t);
+  if(G.money<c){toast('Недостаточно денег!');return;}
+  G.money-=c;G.lvl[i]=t;
+  toast('Улучшено до x'+[1,2,5,10][t-1]+'!');
+  save();renderBiz();updateTop();
+}
+function doInv(i){
+  const inv=INV[i];
+  if(G.money<inv.cost){toast('Недостаточно денег!');return;}
+  G.money-=inv.cost;
+  if(Math.random()<inv.chance){
+    const gain=Math.floor(inv.cost*inv.mult);
+    G.money+=gain;G.total+=gain;
+    toast('Удача! +'+fmt(gain-inv.cost)+' прибыли!');
+  }else{
+    toast('Неудача! Потеряно '+fmt(inv.cost));
+  }
+  save();updateTop();renderInv();
+}
+function doPrestige(){
+  if(G.total<1e6){toast('Нужно заработать $1M суммарно!');return;}
+  G.prestige++;G.pMult=1+G.prestige*0.5;
+  G.money=0;G.total=0;G.tapPow=1;
+  G.owned=[0,0,0,0,0,0];G.lvl=[1,1,1,1,1,1];
+  G.mgr=[false,false,false,false,false,false];
+  G.prog=[0,0,0,0,0,0];
+  toast('Престиж! Множитель x'+G.pMult.toFixed(1));
+  save();renderAll();updateTop();
+}
+
+function updateTop(){
+  document.getElementById('moneyEl').textContent=fmt(G.money);
+  document.getElementById('rateEl').textContent='+'+fs(passive())+'/сек · Всего: '+fmt(G.total);
+}
+
+function renderBiz(){
+  const sec=document.getElementById('sec-biz');sec.innerHTML='';
+  BIZ.forEach((b,i)=>{
+    const c=bizCost(i),own=G.owned[i],inc=bizInc(i),pct=own>0?(G.prog[i]/b.cycle*100):0;
+    const mc=mgrCost(i),lv=G.lvl[i];
+    const d=document.createElement('div');d.className='card';
+    const canB=G.money>=c,canM=!G.mgr[i]&&own>0&&G.money>=mc;
+    const u2c=upCost(i,2),u3c=upCost(i,3),u4c=upCost(i,4);
+    d.innerHTML=`<div class="row">
+      <div class="ico">${b.icon}</div>
+      <div class="info">
+        <div class="bname">${b.name}${own>0?' ×'+own:''}</div>
+        <div class="binc">${own>0?'+'+fs(inc/b.cycle)+'/сек':'Не куплено'}</div>
+        <div class="bmeta">${G.mgr[i]?'✅ Менеджер · ':''}${lv>1?'Уровень x'+[1,2,5,10][lv-1]:'Базовый'}</div>
+      </div>
+      <button class="bbuy ${canB?'green':'grey'}" onclick="buyBiz(${i})">${fmt(c)}</button>
+    </div>
+    ${own>0?`<div class="pbar-wrap">
+      <div class="pbar"><div class="pfill" id="pf${i}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="ups">
+        ${lv<2?`<button class="ubtn ${G.money>=u2c?'can':''}" onclick="upgBiz(${i},2)">x2 ${fmt(u2c)}</button>`:''}
+        ${lv<3?`<button class="ubtn ${G.money>=u3c?'can':''}" onclick="upgBiz(${i},3)">x5 ${fmt(u3c)}</button>`:''}
+        ${lv<4?`<button class="ubtn ${G.money>=u4c?'can':''}" onclick="upgBiz(${i},4)">x10 ${fmt(u4c)}</button>`:''}
+      </div>
+      ${!G.mgr[i]?`<button class="bbuy ${canM?'blue':'grey'}" onclick="buyMgr(${i})" style="font-size:10px">Менеджер<br>${fmt(mc)}</button>`:''}
+    </div>`:''}`;
+    sec.appendChild(d);
+  });
+}
+
+function renderInv(){
+  const sec=document.getElementById('sec-inv');
+  sec.innerHTML=`<div class="news-banner ${G.curNews&&!G.curNews.good?'bad':''}">
+    <strong>📰 Новости рынка</strong><br>
+    ${G.curNews?G.curNews.t+' (осталось '+Math.ceil(G.newsTimer)+'с)':'Следующая новость скоро...'}
+  </div>`;
+  INV.forEach((inv,i)=>{
+    const can=G.money>=inv.cost;
+    const rc=inv.risk==='low'?'blow':inv.risk==='mid'?'bmid':'bhigh';
+    const rl=inv.risk==='low'?'Низкий риск':inv.risk==='mid'?'Средний':'Высокий риск';
+    const d=document.createElement('div');d.className='inv-card';
+    d.innerHTML=`<div class="iname">${inv.name}</div>
+      <div class="idesc">${inv.desc}</div>
+      <div class="irow">
+        <span class="badge ${rc}">${rl}</span>
+        <span style="font-size:11px;color:#666;">Шанс ${Math.round(inv.chance*100)}% → x${inv.mult}</span>
+        <button class="bbuy ${can?'green':'grey'}" onclick="doInv(${i})" style="margin-left:auto">${fmt(inv.cost)}</button>
+      </div>`;
+    sec.appendChild(d);
+  });
+}
+
+function renderRiv(){
+  const sec=document.getElementById('sec-riv');
+  const my=G.total+G.money;
+  sec.innerHTML=`<div style="font-size:12px;color:#666;margin-bottom:9px;">Твоё состояние: ${fmt(my)}</div>`;
+  RIVALS.forEach(r=>{
+    const d=document.createElement('div');d.className='rival-card';
+    const ahead=my>r.worth;
+    d.innerHTML=`<div style="font-size:22px">${r.icon}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${r.name}</div>
+      <div style="font-size:11px;color:#666">${fmt(r.worth)}</div></div>
+      <span class="${ahead?'ahead':'behind'}">${ahead?'Обогнал!':'Впереди'}</span>`;
+    sec.appendChild(d);
+  });
+}
+
+function renderPre(){
+  const sec=document.getElementById('sec-pre');
+  const can=G.total>=1e6,next=1+(G.prestige+1)*0.5;
+  sec.innerHTML=`<div class="srow">
+    <div class="sbox"><div class="sval">${G.prestige}</div><div class="slbl">Престижей</div></div>
+    <div class="sbox"><div class="sval">x${G.pMult.toFixed(1)}</div><div class="slbl">Множитель</div></div>
+  </div>
+  <div class="pbox">
+    <div class="ptitle">🌟 Сброс с бонусом</div>
+    <div class="pdesc">Сбросить всё и получить множитель x${next.toFixed(1)} навсегда ко всем доходам.<br><br>Нужно заработать суммарно $1M. Сейчас: ${fmt(G.total)}.</div>
+    <button class="pbtn" onclick="doPrestige()" ${can?'':'disabled'}>${can?'Получить Престиж!':'Ещё '+fmt(1e6-G.total)}</button>
+  </div>
+  <div style="font-size:11px;color:#555;text-align:center;">После престижа бизнесы и деньги сбрасываются, но множитель остаётся навсегда.</div>`;
+}
+
+function renderAll(){renderBiz();renderInv();renderRiv();renderPre();}
+
+function sw(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.sec').forEach(s=>s.classList.remove('vis'));
+  document.getElementById('sec-'+name).classList.add('vis');
+  if(name==='riv')renderRiv();
+  if(name==='inv')renderInv();
+  if(name==='pre')renderPre();
+}
+
+let last=Date.now(),newsIn=18,saveTimer=0;
+setInterval(()=>{
+  const now=Date.now(),dt=(now-last)/1000;last=now;
+  for(let i=0;i<6;i++){
+    if(!G.owned[i]||!G.mgr[i])continue;
+    G.prog[i]+=dt;
+    if(G.prog[i]>=BIZ[i].cycle){
+      const earn=bizInc(i);G.money+=earn;G.total+=earn;G.prog[i]=0;
+    }
+    const el=document.getElementById('pf'+i);
+    if(el)el.style.width=(G.prog[i]/BIZ[i].cycle*100).toFixed(1)+'%';
+  }
+  newsIn-=dt;
+  if(newsIn<=0){
+    const n=NEWS[Math.floor(Math.random()*NEWS.length)];
+    G.curNews=n;G.newsMult=n.m;G.newsTimer=n.d;
+    document.getElementById('tickerEl').textContent=n.t+' ('+(n.m>1?'+':'')+Math.round((n.m-1)*100)+'% к доходу на '+n.d+'с)';
+    newsIn=20+Math.random()*25;
+  }
+  if(G.newsTimer>0){
+    G.newsTimer-=dt;
+    if(G.newsTimer<=0){G.newsTimer=0;G.newsMult=1;G.curNews=null;document.getElementById('tickerEl').textContent='Рынок стабилизировался. Ждём новостей...';}
+  }
+  saveTimer+=dt;if(saveTimer>10){save();saveTimer=0;}
+  updateTop();
+},200);
+
+load();renderAll();updateTop();
+</script>
+</body>
+</html>
