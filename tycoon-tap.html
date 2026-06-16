@@ -493,7 +493,7 @@ function resetPin() {
 function adminGiveMoney(n) { G.money+=n; G.total+=n; updateTop(); toast('+'+fmt(n)+' добавлено!'); playBuy(); }
 function adminAllManagers() { G.mgr=G.mgr.map(()=>true); renderBiz(); toast('Все менеджеры активны!'); playBuy(); }
 function adminMaxBiz() {
-  for(let i=0;i<BIZ.length;i++){G.owned[i]=Math.max(G.owned[i],10);G.lvl[i]=4;G.taxPaid[i]=true;G.taxTimer[i]=TAX_PERIOD_GAME;}
+  for(let i=0;i<BIZ.length;i++){G.owned[i]=Math.max(G.owned[i],10);G.lvl[i]=4;G.taxDebt[i]=0;G.taxOverdueTimer[i]=0;}
   renderBiz(); updateTop(); toast('Бизнесы прокачаны!'); playBuy();
 }
 function openResetConfirm() { document.getElementById('resetOverlay').classList.add('show'); }
@@ -510,8 +510,8 @@ function fullReset() {
   G.mgr=new Array(BIZ.length).fill(false);
   G.prog=new Array(BIZ.length).fill(0);
   G.invCD=new Array(INV.length).fill(0);
-  G.taxPaidTotal=new Array(BIZ.length).fill(0);
-  G.taxPaidSession=0;
+  G.taxDebt=new Array(BIZ.length).fill(0);
+  G.taxOverdueTimer=new Array(BIZ.length).fill(0);
   renderAll(); updateTop(); toast('Игра сброшена полностью!');
 }
 
@@ -570,8 +570,8 @@ const TAX_PERIOD_GAME = 24 * 3600; // 24 real hours in seconds
 let G={money:10,total:10,tapPow:1,prestige:0,pMult:1,newsMult:1,newsTimer:0,newsIn:18,curNews:null,
   owned:new Array(BIZ.length).fill(0),lvl:new Array(BIZ.length).fill(1),mgr:new Array(BIZ.length).fill(false),
   prog:new Array(BIZ.length).fill(0),invCD:new Array(INV.length).fill(0),
-  taxPaidTotal:new Array(BIZ.length).fill(0), // total tax paid per business all time
-  taxPaidSession:0, // tax paid this session
+  taxDebt:new Array(BIZ.length).fill(0),      // накопленный долг по каждому бизнесу
+  taxOverdueTimer:new Array(BIZ.length).fill(0), // сколько секунд бизнес в долгу (макс 24ч)
   dark:true};
 
 function save(){
@@ -588,9 +588,9 @@ function load(){
       // patch arrays if biz/inv count changed
       while(p.owned.length<BIZ.length){p.owned.push(0);p.lvl.push(1);p.mgr.push(false);p.prog.push(0);}
       while(p.invCD.length<INV.length)p.invCD.push(0);
-      if(!p.taxPaidTotal)p.taxPaidTotal=new Array(BIZ.length).fill(0);
-      if(p.taxPaidSession===undefined)p.taxPaidSession=0;
-      while(p.taxPaidTotal.length<BIZ.length)p.taxPaidTotal.push(0);
+      if(!p.taxDebt)p.taxDebt=new Array(BIZ.length).fill(0);
+      if(!p.taxOverdueTimer)p.taxOverdueTimer=new Array(BIZ.length).fill(0);
+      while(p.taxDebt.length<BIZ.length){p.taxDebt.push(0);p.taxOverdueTimer.push(0);}
       darkMode=p.dark!==false;
       soundOn=p.soundOn!==false;
       volume=p.volume??0.7;
@@ -718,21 +718,24 @@ function renderBiz(){
   BIZ.forEach((b,i)=>{
     const c=bizCost(i),own=G.owned[i],inc=bizInc(i),pct=own>0?(G.prog[i]/b.cycle*100):0;
     const mc=mgrCost(i),lv=G.lvl[i];
-    const d=document.createElement('div');d.className='card glass-card';
+    const stopped=own>0&&(G.taxOverdueTimer[i]||0)>=TAX_PERIOD_GAME;
+    const hasDebt=own>0&&(G.taxDebt[i]||0)>0;
+    const d=document.createElement('div');d.className='card glass-card'+(stopped?' biz-stopped':'');
     const canB=G.money>=c,canM=!G.mgr[i]&&own>0&&G.money>=mc;
     const u2c=upCost(i,2),u3c=upCost(i,3),u4c=upCost(i,4);
-    const netInc = inc * (1 - TAX_RATE);
     d.innerHTML=`<div class="row">
-      <div class="ico">${b.icon}</div>
+      <div class="ico" style="${stopped?'filter:grayscale(1);opacity:.5':''}">${b.icon}</div>
       <div class="info">
-        <div class="bname">${b.name}${own>0?' ×'+own:''}</div>
-        <div class="binc">${own>0?'+'+fs(netInc/b.cycle)+'/сек <span style="color:var(--text3);font-size:10px;">(после налога)</span>':'Не куплено'}</div>
+        <div class="bname">${b.name}${own>0?' ×'+own:''}
+          ${stopped?'<span class="stopped-badge">⛔ Налог</span>':hasDebt?'<span style="font-size:10px;color:#FAC775;margin-left:4px;">⚠️</span>':''}
+        </div>
+        <div class="binc">${own>0?(stopped?'<span style="color:#f87171">Остановлен — вкладка Налоги</span>':'+'+fs(inc/b.cycle)+'/сек'):'Не куплено'}</div>
         <div class="bmeta">${G.mgr[i]?'✅ Менеджер · ':''}${lv>1?'x'+[1,2,5,10][lv-1]+' доход':'Базовый'}</div>
       </div>
       <button id="bbuy-${i}" class="bbuy ${canB?'green':'grey'}" onclick="buyBiz(${i})">${fmt(c)}</button>
     </div>
     ${own>0?`<div class="pbar-wrap">
-      <div class="pbar"><div class="pfill" id="pf${i}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="pbar"><div class="pfill" id="pf${i}" style="width:${stopped?0:pct.toFixed(1)}%"></div></div>
       <div class="ups">
         ${lv<2?`<button id="u2-${i}" class="ubtn ${G.money>=u2c?'can':''}" onclick="upgBiz(${i},2)">x2 ${fmt(u2c)}</button>`:''}
         ${lv<3?`<button id="u3-${i}" class="ubtn ${G.money>=u3c?'can':''}" onclick="upgBiz(${i},3)">x5 ${fmt(u3c)}</button>`:''}
@@ -784,6 +787,47 @@ function fmtTime(s) {
   return `${sec}с`;
 }
 
+function payTax(i) {
+  if(!G.owned[i]) return;
+  const debt = G.taxDebt[i];
+  if(debt<=0){ toast('Нет задолженности по этому бизнесу!'); return; }
+  if(G.money<debt){ toast('Нет денег! Нужно '+fmt(debt)); return; }
+  G.money-=debt;
+  G.taxDebt[i]=0;
+  G.taxOverdueTimer[i]=0;
+  playBuy();
+  toast('✅ Налог оплачен: '+BIZ[i].name);
+  save(); updateTop(); renderTax(); renderBiz();
+}
+
+function payAllTax() {
+  let paid=0, totalCost=0;
+  for(let i=0;i<BIZ.length;i++){
+    if(!G.owned[i]||G.taxDebt[i]<=0) continue;
+    totalCost+=G.taxDebt[i];
+  }
+  if(totalCost<=0){ toast('Нет задолженностей!'); return; }
+  if(G.money<totalCost){ toast('Нет денег на все налоги! Нужно '+fmt(totalCost)); return; }
+  for(let i=0;i<BIZ.length;i++){
+    if(!G.owned[i]||G.taxDebt[i]<=0) continue;
+    G.money-=G.taxDebt[i];
+    G.taxDebt[i]=0;
+    G.taxOverdueTimer[i]=0;
+    paid++;
+  }
+  playBuy();
+  toast('✅ Оплачено налогов: '+paid+' бизнес(ов)');
+  save(); updateTop(); renderTax(); renderBiz();
+}
+
+function fmtTime(s) {
+  s = Math.max(0, Math.ceil(s));
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if(h>0) return `${h}ч ${m}м`;
+  if(m>0) return `${m}м ${sec}с`;
+  return `${sec}с`;
+}
+
 function renderTax() {
   const sec = document.getElementById('sec-tax');
   if(!sec) return;
@@ -792,51 +836,68 @@ function renderTax() {
     sec.innerHTML=`<div class="glass-card" style="padding:20px;text-align:center;color:var(--text2);font-size:13px;">Купи бизнес чтобы видеть налоги</div>`;
     return;
   }
-  const totalPaidSession = G.taxPaidSession||0;
-  const totalPaidAll = (G.taxPaidTotal||[]).reduce((s,v)=>s+v,0);
 
-  let html = `<div class="glass-card" style="padding:14px 16px;margin-bottom:10px;">
-    <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">🏛️ Налоговая служба — 25% с каждого дохода</div>
-    <div style="display:flex;gap:8px;">
-      <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;text-align:center;">
-        <div style="font-size:15px;font-weight:700;color:#f87171;">${fmt(totalPaidSession)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">За сессию</div>
+  const totalDebt = owned.reduce((s,i)=>s+(G.taxDebt[i]||0),0);
+  const canPayAll = G.money>=totalDebt && totalDebt>0;
+  const stoppedCount = owned.filter(i=>G.taxOverdueTimer[i]>=TAX_PERIOD_GAME).length;
+  const debtCount = owned.filter(i=>(G.taxDebt[i]||0)>0).length;
+
+  let html=`<div class="glass-card" style="padding:14px 16px;margin-bottom:10px;">
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">🏛️ Налоговая служба · 25% с каждого цикла дохода</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <div style="flex:1;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:17px;font-weight:700;color:#f87171;">${fmt(totalDebt)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Суммарный долг</div>
       </div>
       <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;text-align:center;">
-        <div style="font-size:15px;font-weight:700;color:#f87171;">${fmt(totalPaidAll)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;">За всё время</div>
+        <div style="font-size:17px;font-weight:700;color:${stoppedCount>0?'#f87171':'#4ade80'};">${stoppedCount}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">Остановлено</div>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;">Налог списывается автоматически с каждого цикла дохода. Нужен менеджер чтобы бизнес работал и платил налоги.</div>
+    ${totalDebt>0?`<button class="bbuy ${canPayAll?'green':'grey'}" style="width:100%;padding:10px;font-size:13px;" onclick="payAllTax()">Оплатить всё — ${fmt(totalDebt)}</button>`:'<div style="font-size:12px;color:#4ade80;text-align:center;">✅ Все налоги оплачены</div>'}
   </div>`;
 
   owned.forEach(i=>{
     const b=BIZ[i];
-    const gross=bizInc(i);
-    const tax=gross*TAX_RATE;
-    const net=gross-tax;
-    const paidTotal=(G.taxPaidTotal&&G.taxPaidTotal[i])||0;
-    html+=`<div class="glass-card" style="padding:13px 15px;margin-bottom:9px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:24px;">${b.icon}</div>
+    const debt=G.taxDebt[i]||0;
+    const overdueT=G.taxOverdueTimer[i]||0;
+    const stopped=overdueT>=TAX_PERIOD_GAME;
+    const hasDebt=debt>0;
+    const timeLeft=TAX_PERIOD_GAME-overdueT;
+    const pct=hasDebt?(overdueT/TAX_PERIOD_GAME)*100:0;
+    const barClass=pct>75?'tax-fill-danger':pct>40?'tax-fill-warn':'tax-fill-ok';
+    const canPay=G.money>=debt&&debt>0;
+    const grossPerCycle=bizInc(i);
+    const taxPerCycle=Math.floor(grossPerCycle*TAX_RATE);
+
+    html+=`<div class="glass-card" style="padding:13px 15px;margin-bottom:9px;${stopped?'border-color:rgba(248,113,113,0.35);':hasDebt?'border-color:rgba(250,199,117,0.3);':''}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="font-size:24px;${stopped?'filter:grayscale(1);opacity:.5':''}">${b.icon}</div>
         <div style="flex:1;">
-          <div style="font-size:13px;font-weight:600;">${b.name} ×${G.owned[i]}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px;">
-            Доход: <span style="color:#4ade80">${fs(gross/b.cycle)}/сек</span>
-            → Налог: <span style="color:#f87171">−${fs(tax/b.cycle)}/сек</span>
-            → Чистый: <span style="color:var(--accent2)">${fs(net/b.cycle)}/сек</span>
+          <div style="font-size:13px;font-weight:600;">${b.name} ×${G.owned[i]}
+            ${stopped?'<span style="font-size:10px;color:#f87171;margin-left:4px;">⛔ СТОП</span>':hasDebt?'<span style="font-size:10px;color:#FAC775;margin-left:4px;">⚠️ Долг</span>':'<span style="font-size:10px;color:#4ade80;margin-left:4px;">✅</span>'}
+          </div>
+          <div style="font-size:11px;color:var(--text2);">
+            ${stopped?'Бизнес остановлен — оплати долг':hasDebt?'До остановки: '+fmtTime(timeLeft):'Нет задолженности'}
           </div>
         </div>
+        ${debt>0?`<button class="tax-btn ${canPay?'tax-btn-due':'grey bbuy'}" onclick="payTax(${i})" style="${!canPay?'opacity:.5':''}">
+          ${fmt(debt)}
+        </button>`:''}
       </div>
-      <div style="margin-top:8px;background:rgba(255,255,255,0.05);border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:11px;color:var(--text3);">Уплачено налогов</span>
-        <span style="font-size:13px;font-weight:600;color:#f87171;">${fmt(paidTotal)}</span>
+      ${hasDebt?`<div class="tax-bar"><div class="${barClass}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <span style="font-size:10px;color:var(--text3);">Долг копился ${fmtTime(overdueT)}</span>
+        <span style="font-size:10px;color:var(--text3);">Остановка через ${fmtTime(timeLeft)}</span>
+      </div>`:''}
+      <div style="margin-top:7px;background:rgba(255,255,255,0.04);border-radius:8px;padding:7px 10px;font-size:11px;color:var(--text3);display:flex;justify-content:space-between;">
+        <span>Налог/цикл: ${fmt(taxPerCycle)}</span>
+        <span>Доход/цикл: ${fmt(grossPerCycle)}</span>
       </div>
-      ${!G.mgr[i]?`<div style="margin-top:6px;font-size:10px;color:var(--text3);">💡 Найми менеджера чтобы налоги платились автоматически</div>`:''}
     </div>`;
   });
 
-  sec.innerHTML = html;
+  sec.innerHTML=html;
 }
 
 function renderInv(){
@@ -1106,22 +1167,34 @@ function sw(name,el){
   if(name==='pre')renderPre();
 }
 
-let last=Date.now(),newsIn=18,saveTimer=0,btnTimer=0;
+let last=Date.now(),newsIn=18,saveTimer=0,btnTimer=0,taxUiTimer=0;
 stockNextUpdate=60; stockDivTimer=3600;
 setInterval(()=>{
   const now=Date.now(),dt=(now-last)/1000;last=now;
   for(let i=0;i<BIZ.length;i++){
-    if(!G.owned[i]) continue;
-    if(!G.mgr[i]) continue;
-    if(!G.taxPaid[i]) continue;
+    if(!G.owned[i]||!G.mgr[i]) continue;
+    const isStopped = G.taxOverdueTimer[i] >= TAX_PERIOD_GAME;
+    if(isStopped) continue; // бизнес остановлен — не работает
+
+    // Если есть долг — таймер просрочки тикает
+    if(G.taxDebt[i]>0){
+      G.taxOverdueTimer[i]+=dt;
+      if(G.taxOverdueTimer[i]>=TAX_PERIOD_GAME){
+        G.taxOverdueTimer[i]=TAX_PERIOD_GAME;
+        toast('⛔ '+BIZ[i].name+' остановлен! Оплати налог.');
+        renderBiz(); renderTax();
+        continue;
+      }
+    } else {
+      G.taxOverdueTimer[i]=0; // нет долга — сбрасываем таймер
+    }
+
     G.prog[i]+=dt;
     if(G.prog[i]>=BIZ[i].cycle){
       const gross=bizInc(i);
-      const tax=gross*TAX_RATE;
-      const net=gross-tax;
-      G.money+=net; G.total+=net;
-      G.taxPaidTotal[i]=(G.taxPaidTotal[i]||0)+tax;
-      G.taxPaidSession=(G.taxPaidSession||0)+tax;
+      const tax=Math.floor(gross*TAX_RATE);
+      G.money+=gross; G.total+=gross; // платишь полный доход
+      G.taxDebt[i]+=tax; // долг накапливается
       G.prog[i]=0;
     }
     const el=document.getElementById('pf'+i);
@@ -1165,6 +1238,11 @@ setInterval(()=>{
     if(G.newsTimer<=0){G.newsTimer=0;G.newsMult=1;G.curNews=null;document.getElementById('tickerEl').textContent='Рынок стабилизировался. Ждём новостей...';}
   }
   btnTimer+=dt;if(btnTimer>=0.5){updateBtnColors();btnTimer=0;}
+  taxUiTimer=(taxUiTimer||0)+dt;
+  if(taxUiTimer>=1){
+    taxUiTimer=0;
+    if(document.getElementById('sec-tax')?.classList.contains('vis')) renderTax();
+  }
   saveTimer+=dt;if(saveTimer>10){save();saveTimer=0;}
   updateTop();
 },200);
